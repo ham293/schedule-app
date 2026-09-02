@@ -1,0 +1,19 @@
+{
+  "name": "日程管家",
+  "short_name": "日程管家",
+  "description": "自动生成表格、提前30分钟提醒的手机日程整理工具",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef1fb",
+  "theme_color": "#5b6cff",
+  "lang": "zh-CN",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

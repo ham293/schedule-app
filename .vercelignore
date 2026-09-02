@@ -1,0 +1,8 @@
+# Files NOT uploaded to Vercel (deps are installed from package.json)
+node_modules/
+apk/
+test-remind.js
+server-local.js
+icons/make_icons.py
+icons/icon.ico
+vapid.json

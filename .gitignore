@@ -1,0 +1,10 @@
+# 忽略依赖与生成物（推送到 GitHub 时不要上传这些大文件）
+node_modules/
+apk/node_modules/
+apk/www/
+apk/android/
+*.log
+.DS_Store
+.vscode/
+.idea/
+.vercel

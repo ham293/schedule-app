@@ -1,0 +1,14 @@
+{
+  "appId": "com.schedule.manager",
+  "appName": "日程管家",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon",
+      "iconColor": "#5b6cff"
+    }
+  }
+}

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#5b6cff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="日程管家" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <title>日程管家 · 自动表格 · 提前提醒</title>
+</head>
+<body>
+  <div id="app">
+
+    <!-- 顶部栏 -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M12 7v5l3 3"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>日程管家</h1>
+          <p id="todayLabel">—</p>
+        </div>
+      </div>
+      <button id="notifyBtn" class="icon-btn" title="提醒权限">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.7 21a2 2 0 0 1-3.4 0"></path>
+        </svg>
+        <span id="notifyDot" class="dot"></span>
+      </button>
+    </header>
+
+    <!-- 快速添加（自然语言） -->
+    <section class="quick-add card">
+      <form id="quickForm" autocomplete="off">
+        <div class="qa-row">
+          <span class="qa-prefix">＋</span>
+          <textarea id="quickInput" rows="4" placeholder="例如：明天下午3点 开会&#10;或整段粘贴通知，例如：&#10;9.3日程&#10;1.专业介绍会 时间：9:00-11:00 地点：教3-210&#10;2.入党启蒙 时间：14:00-15:20 地点：大讲堂中心报告厅"></textarea>
+        </div>
+        <div class="qa-actions">
+          <button type="submit" class="btn btn-primary">一键录入 / 批量解析</button>
+          <button type="button" id="openFormBtn" class="btn btn-ghost">手动填写</button>
+        </div>
+        <p class="hint">单条：<b>明天下午3点 开会</b>；也可<b>整段粘贴通知</b>（含「9.3日程 / 时间：… / 地点：…」），自动拆成多条日程并生成表格。</p>
+      </form>
+    </section>
+
+    <!-- 手动添加表单（折叠） -->
+    <section id="formCard" class="form-card card hidden">
+      <form id="manualForm" autocomplete="off">
+        <label>日程事项</label>
+        <input id="fTitle" type="text" placeholder="做什么？例如：项目周会" maxlength="60" required />
+
+        <div class="grid2">
+          <div>
+            <label>日期</label>
+            <input id="fDate" type="date" required />
+          </div>
+          <div>
+            <label>开始时间</label>
+            <input id="fTime" type="time" required />
+          </div>
+        </div>
+        <div class="grid2">
+          <div>
+            <label>结束时间(可选)</label>
+            <input id="fEnd" type="time" />
+          </div>
+          <div>
+            <label>地点(可选)</label>
+            <input id="fLocation" type="text" placeholder="例如：教3-210" maxlength="80" />
+          </div>
+        </div>
+
+        <label>提前提醒</label>
+        <div class="row-flex" id="remindGroup">
+          <button type="button" class="chip active" data-min="30">30分钟</button>
+          <button type="button" class="chip" data-min="10">10分钟</button>
+          <button type="button" class="chip" data-min="60">60分钟</button>
+          <button type="button" class="chip" data-min="0">不提醒</button>
+        </div>
+        <input type="hidden" id="fRemind" value="30" />
+
+        <label class="row-flex" style="margin-top:12px">
+          <input type="text" id="fNote" placeholder="备注（可选）" maxlength="200" />
+        </label>
+
+        <div class="qa-actions">
+          <button type="submit" class="btn btn-primary">保存日程</button>
+          <button type="button" id="cancelFormBtn" class="btn btn-ghost">取消</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 视图切换 -->
+    <nav class="seg">
+      <button id="tabList" class="seg-btn active" data-view="list">列表</button>
+      <button id="tabTable" class="seg-btn" data-view="table">表格</button>
+    </nav>
+
+    <!-- 列表视图 -->
+    <section id="viewList" class="view">
+      <div id="listContainer" class="groups"></div>
+    </section>
+
+    <!-- 表格视图 -->
+    <section id="viewTable" class="view hidden">
+      <div class="table-wrap">
+        <table id="scheduleTable" class="schedule-table">
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>时间</th>
+              <th>事项</th>
+              <th>提醒</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <p id="tableEmpty" class="empty">还没有日程，先添加一条吧～</p>
+      </div>
+    </section>
+
+    <p id="emptyHint" class="empty">还没有日程，点击上方「一键录入」添加第一条吧 🎉</p>
+
+    <!-- 底栏 -->
+    <nav class="bottombar">
+      <button id="fabAdd" class="fab">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        <span>添加日程</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- 编辑弹窗 -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card">
+      <h3 id="modalTitle">编辑日程</h3>
+      <form id="editForm" autocomplete="off">
+        <label>日程事项</label>
+        <input id="eTitle" type="text" maxlength="60" required />
+        <div class="grid2">
+          <div>
+            <label>日期</label>
+            <input id="eDate" type="date" required />
+          </div>
+          <div>
+            <label>开始时间</label>
+            <input id="eTime" type="time" required />
+          </div>
+        </div>
+        <div class="grid2">
+          <div>
+            <label>结束时间(可选)</label>
+            <input id="eEnd" type="time" />
+          </div>
+          <div>
+            <label>地点(可选)</label>
+            <input id="eLocation" type="text" placeholder="例如：教3-210" maxlength="80" />
+          </div>
+        </div>
+        <label>提前提醒</label>
+        <div class="row-flex" id="eRemindGroup">
+          <button type="button" class="chip" data-min="30">30分钟</button>
+          <button type="button" class="chip" data-min="10">10分钟</button>
+          <button type="button" class="chip" data-min="60">60分钟</button>
+          <button type="button" class="chip" data-min="0">不提醒</button>
+        </div>
+        <input type="hidden" id="eRemind" value="30" />
+        <label class="row-flex" style="margin-top:12px">
+          <input type="text" id="eNote" placeholder="备注（可选）" maxlength="200" />
+        </label>
+        <div class="qa-actions">
+          <button type="submit" class="btn btn-primary">保存修改</button>
+          <button type="button" id="deleteBtn" class="btn btn-danger">删除</button>
+          <button type="button" class="btn btn-ghost" data-close>取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 日程提醒弹窗（声音 + 震动 + 全屏弹窗） -->
+  <div id="remindModal" class="remind-modal hidden">
+    <div class="remind-backdrop"></div>
+    <div class="remind-card">
+      <div class="remind-ring"><span>⏰</span></div>
+      <h2 class="remind-head">日程提醒</h2>
+      <p id="remindTitle" class="remind-title"></p>
+      <p id="remindMeta" class="remind-meta"></p>
+      <div class="remind-actions">
+        <button id="remindDismiss" class="btn btn-primary">知道了</button>
+        <button id="remindSnooze" class="btn btn-ghost">5分钟后提醒</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/nlparse.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
