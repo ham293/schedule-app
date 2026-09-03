@@ -608,18 +608,13 @@
       const LN = getLocalNotif();
       if (LN) {
         try {
-          const res = await LN.requestPermissions();
-          const granted = res && (res.display === 'granted' || res.display === 'limited');
-          if (granted) {
-            await LN.createChannel({ id: 'alarm_reminders', name: '日程提醒', importance: 4, sound: 'schedule_alarm', vibration: true, visibility: 0, lights: true });
-            // 3 秒后发一条测试通知，验证原生通知是否生效
-            await LN.schedule({ notifications: [{ id: 999999, title: '⏰ 测试提醒', body: '如果你听到铃声，说明原生后台提醒已生效', schedule: { at: new Date(Date.now() + 3000).toISOString(), allowWhileIdle: true }, sound: 'schedule_alarm', channelId: 'alarm_reminders', smallIcon: 'ic_stat_icon' }] });
-            toast('已开启，3 秒后发送测试提醒');
-          } else {
-            toast('通知权限未开启，请在系统设置里打开');
-          }
+          await LN.requestPermissions();
+          await LN.createChannel({ id: 'alarm_reminders', name: '日程提醒', importance: 4, sound: 'schedule_alarm', vibration: true, visibility: 0, lights: true });
+          // 点一下立即发一条测试提醒，验证后台通知是否正常
+          await LN.schedule({ notifications: [{ id: 123456, title: '⏰ 测试提醒', body: '收到说明后台提醒正常', schedule: { at: new Date(Date.now() + 2000).toISOString(), allowWhileIdle: true }, sound: 'schedule_alarm', channelId: 'alarm_reminders', smallIcon: 'ic_stat_icon' }] });
+          toast('测试提醒已发送，2 秒后请注意通知/锁屏');
           await scheduleNativeReminders();
-        } catch (e) { toast('请求通知权限失败：' + String(e && e.message || e)); }
+        } catch (e) { toast('发送失败：' + String(e && e.message || e)); }
         return;
       }
       const p = await ensurePermission();
