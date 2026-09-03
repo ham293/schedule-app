@@ -354,9 +354,9 @@
 
   // ---------- CAPACITOR 原生本地通知（APK：无需服务器，关闭也能提醒） ----------
   function toNumId(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; } return (h % 2147483646) + 1; }
-  // 转成 Capacitor 的原生本地时间对象（避免时区/ISO 解析问题）
+  // 转成 Capacitor 的原生本地时间对象（注意：Capacitor 的 month 是 0-11，不是 1-12）
   function localScheduleOn(d) {
-    return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), hour: d.getHours(), minute: d.getMinutes(), second: d.getSeconds() };
+    return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate(), hour: d.getHours(), minute: d.getMinutes(), second: d.getSeconds() };
   }
   async function scheduleNativeReminders() {
     const LN = getLocalNotif();
