@@ -185,6 +185,7 @@
 
   function parseQuick(raw, now) {
     if (!raw || !raw.trim()) return { error: '请输入日程内容' };
+    now = now || new Date(); // 兜底：调用方未传时用当前时间
     let text = raw.trim();
     // 去掉首尾的介词
     text = text.replace(/^[，,是为要的]+/, '').trim();
