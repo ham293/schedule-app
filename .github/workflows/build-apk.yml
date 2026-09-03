@@ -43,10 +43,12 @@ jobs:
         working-directory: apk
         run: npx cap sync android
 
-      - name: Add alarm sound to res/raw
+      - name: Add alarm sound + notification icon
         run: |
           mkdir -p apk/android/app/src/main/res/raw
           cp apk/res-raw/schedule_alarm.wav apk/android/app/src/main/res/raw/
+          mkdir -p apk/android/app/src/main/res/drawable
+          cp apk/res-drawable/ic_stat_icon.xml apk/android/app/src/main/res/drawable/
 
       - name: Build debug APK
         working-directory: apk/android
