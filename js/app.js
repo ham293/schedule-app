@@ -11,14 +11,24 @@
   let tickTimer = null;
   let pushEnabled = false; // 推送是否已就绪（就绪后由后端负责提醒，避免重复本地通知）
   // APK（Capacitor）模式：使用原生本地通知，无需服务器/域名，App 关闭也能提醒
+  let _ln = null;
   function getLocalNotif() {
+    if (_ln) return _ln;
     try {
-      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) return window.Capacitor.Plugins.LocalNotifications;
-      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins['LocalNotifications']) return window.Capacitor.Plugins['LocalNotifications'];
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) {
+        _ln = window.Capacitor.Plugins.LocalNotifications;
+        return _ln;
+      }
+      // 普通脚本未 import 插件时，用 Capacitor 原生注册一个代理（直接调用原生 LocalNotifications）
+      if (window.Capacitor && typeof window.Capacitor.registerPlugin === 'function') {
+        _ln = window.Capacitor.registerPlugin('LocalNotifications');
+        if (window.Capacitor.Plugins) window.Capacitor.Plugins.LocalNotifications = _ln;
+        return _ln;
+      }
     } catch (e) {}
     return null;
   }
-  const isCap = !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications);
+  const isCap = !!getLocalNotif();
 
   // 全局错误提示：任何未捕获错误都弹出来，避免“静默无反应”
   window.addEventListener('error', (ev) => {
@@ -352,7 +362,8 @@
       await LN.cancel({ notifications: pending.notifications });
       // 先申请权限（安卓13+会弹系统授权）
       await LN.requestPermissions();
-      await LN.createChannel({ id: 'reminders', name: '日程提醒', importance: 4, sound: 'default', vibration: true, visibility: 0 });
+      // 最高优先级 + 自定义闹钟铃声（res/raw/schedule_alarm.wav）
+      await LN.createChannel({ id: 'alarm_reminders', name: '日程提醒', importance: 4, sound: 'schedule_alarm', vibration: true, visibility: 0, lights: true });
     } catch (e) { /* 忽略 */ }
     const now = Date.now();
     const list = [];
@@ -366,8 +377,8 @@
           title: '⏰ 日程提醒',
           body: `${it.title} · ${it.date} ${it.allDay ? '全天' : it.time + (it.end ? '-' + it.end : '')}${it.location ? ' · ' + it.location : ''}`,
           schedule: { at: new Date(when), allowWhileIdle: true },
-          sound: 'default',
-          channelId: 'reminders',
+          sound: 'schedule_alarm',
+          channelId: 'alarm_reminders',
           smallIcon: 'ic_stat_icon',
         });
       }
