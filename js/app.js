@@ -11,6 +11,13 @@
   let tickTimer = null;
   let pushEnabled = false; // 推送是否已就绪（就绪后由后端负责提醒，避免重复本地通知）
   // APK（Capacitor）模式：使用原生本地通知，无需服务器/域名，App 关闭也能提醒
+  function getLocalNotif() {
+    try {
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) return window.Capacitor.Plugins.LocalNotifications;
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins['LocalNotifications']) return window.Capacitor.Plugins['LocalNotifications'];
+    } catch (e) {}
+    return null;
+  }
   const isCap = !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications);
 
   // 全局错误提示：任何未捕获错误都弹出来，避免“静默无反应”
@@ -32,15 +39,19 @@
   }
   function uuid() { return 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function pad(n) { return String(n).padStart(2, '0'); }
-  function fmtDate(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function fmtDate(d) {
+    if (!(d instanceof Date) || isNaN(d.getTime())) d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
   function todayStr() { return fmtDate(new Date()); }
   function parseWhen(item) { return new Date(item.date + 'T' + item.time); }
 
   const WD_CN = ['日', '一', '二', '三', '四', '五', '六'];
 
   function weekdayCN(dateStr) {
+    if (!dateStr) return '';
     const d = new Date(dateStr + 'T00:00:00');
-    return '周' + WD_CN[d.getDay()];
+    return isNaN(d.getTime()) ? '' : '周' + WD_CN[d.getDay()];
   }
 
   function isToday(dateStr) { return dateStr === todayStr(); }
@@ -320,8 +331,8 @@
   }
 
   // 触发提醒：全屏弹窗 + 声音 + 震动 + 系统通知（推送未启用时）
+  // 无论是网页版还是 APK，App 打开时都弹窗+声音+震动，确保能被注意到
   function fireReminder(item, isSnooze) {
-    if (isCap) return; // APK 模式由原生本地通知负责，避免重复
     showRemindModal(item, isSnooze);
     playSound();
     if (navigator.vibrate) { try { navigator.vibrate([300, 120, 300, 120, 300]); } catch (e) {} }
@@ -334,13 +345,15 @@
   // ---------- CAPACITOR 原生本地通知（APK：无需服务器，关闭也能提醒） ----------
   function toNumId(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; } return (h % 2147483646) + 1; }
   async function scheduleNativeReminders() {
-    if (!isCap) return;
-    const LN = window.Capacitor.Plugins.LocalNotifications;
+    const LN = getLocalNotif();
+    if (!LN) return;
     try {
       const pending = await LN.getPending();
       await LN.cancel({ notifications: pending.notifications });
+      // 先申请权限（安卓13+会弹系统授权）
+      await LN.requestPermissions();
+      await LN.createChannel({ id: 'reminders', name: '日程提醒', importance: 4, sound: 'default', vibration: true, visibility: 0 });
     } catch (e) { /* 忽略 */ }
-    try { await LN.createChannel({ id: 'reminders', name: '日程提醒', importance: 4, sound: 'default', vibration: true, visibility: 0 }); } catch (e) {}
     const now = Date.now();
     const list = [];
     for (const it of items) {
@@ -360,7 +373,6 @@
       }
     }
     if (!list.length) return;
-    try { await LN.requestPermissions(); } catch (e) {}
     try { await LN.schedule({ notifications: list }); } catch (e) {}
   }
 
@@ -576,6 +588,16 @@
     // FAB / 通知
     $('#fabAdd').addEventListener('click', () => { initFormDefaults(); $('#formCard').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' }); });
     $('#notifyBtn').addEventListener('click', async () => {
+      const LN = getLocalNotif();
+      if (LN) {
+        try {
+          const res = await LN.requestPermissions();
+          if (res && res.display === 'granted') toast('已开启提醒通知 ✅');
+          else toast('通知权限未开启，请在系统设置里打开');
+          await scheduleNativeReminders();
+        } catch (e) { toast('请求通知权限失败'); }
+        return;
+      }
       const p = await ensurePermission();
       if (p === 'granted') toast('已开启提醒通知 ✅');
       else if (p === 'unsupported') toast('当前浏览器不支持通知');

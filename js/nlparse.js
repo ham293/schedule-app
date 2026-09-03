@@ -34,7 +34,10 @@
   }
 
   function pad(n) { return String(n).padStart(2, '0'); }
-  function toDateStr(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function toDateStr(d) {
+    if (!(d instanceof Date) || isNaN(d.getTime())) d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
 
   function findPeriod(text) {
     for (const p of PERIODS) {
@@ -47,8 +50,8 @@
   }
 
   function findHour(text) {
-    // 优先带分钟的形式
-    let m = /(\d{1,2})\s*[:点时]\s*(\d{1,2})\s*分?/.exec(text);
+    // 优先带分钟的形式（兼容半角 : 和全角 ：）
+    let m = /(\d{1,2})\s*[:：点时]\s*(\d{1,2})\s*分?/.exec(text);
     if (m) {
       let h = parseInt(m[1], 10);
       let min = parseInt(m[2], 10);
