@@ -160,12 +160,47 @@
     };
   }
 
+  // 相对时间：X分钟后 / X小时X分钟后 / X天后 / 现在·马上·立刻
+  function relativeDateTime(text, now) {
+    let offset = 0, has = false;
+    const spans = [];
+
+    const dm = text.match(/(\d+)\s*天\s*(后|之后|以后)?/);
+    if (dm) { offset += (+dm[1]) * 86400000; has = true; spans.push([dm.index, dm.index + dm[0].length]); }
+
+    const hm = text.match(/(\d+)\s*(?:个)?\s*小时\s*(?:(\d+)\s*分钟)?\s*(后|之后|以后)?/);
+    const mm = text.match(/(\d+)\s*分钟\s*(后|之后|以后)?/);
+    if (hm) { offset += (+hm[1]) * 3600000; if (hm[2]) offset += (+hm[2]) * 60000; has = true; spans.push([hm.index, hm.index + hm[0].length]); }
+    else if (mm) { offset += (+mm[1]) * 60000; has = true; spans.push([mm.index, mm.index + mm[0].length]); }
+
+    if (!has) {
+      const pm = text.match(/现在|马上|立刻/);
+      if (pm) { has = true; offset = 0; spans.push([pm.index, pm.index + pm[0].length]); }
+    }
+    if (!has) return null;
+
+    const d = new Date(now.getTime() + offset);
+    return { dateStr: toDateStr(d), timeStr: pad(d.getHours()) + ':' + pad(d.getMinutes()), spans };
+  }
+
   function parseQuick(raw, now) {
     if (!raw || !raw.trim()) return { error: '请输入日程内容' };
     let text = raw.trim();
     // 去掉首尾的介词
     text = text.replace(/^[，,是为要的]+/, '').trim();
     const titleCand = text;
+
+    // 相对时间优先：「11分钟后」
+    const rel = relativeDateTime(text, now);
+    if (rel) {
+      const del = new Array(text.length).fill(false);
+      for (const [s, e] of rel.spans) for (let i = s; i < e; i++) del[i] = true;
+      let out = '';
+      for (let i = 0; i < text.length; i++) if (!del[i]) out += text[i];
+      out = out.replace(/[。，,、\s]+/g, ' ').trim();
+      const title = out || titleCand.replace(/[。，,、\s]+/g, ' ').trim() || '日程';
+      return { dateStr: rel.dateStr, timeStr: rel.timeStr, allDay: false, title };
+    }
 
     const dateInfo = resolveDate(text, now);
     const timeInfo = resolveTime(text, now);
