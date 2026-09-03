@@ -605,10 +605,17 @@
       if (LN) {
         try {
           const res = await LN.requestPermissions();
-          if (res && res.display === 'granted') toast('已开启提醒通知 ✅');
-          else toast('通知权限未开启，请在系统设置里打开');
+          const granted = res && (res.display === 'granted' || res.display === 'limited');
+          if (granted) {
+            await LN.createChannel({ id: 'alarm_reminders', name: '日程提醒', importance: 4, sound: 'schedule_alarm', vibration: true, visibility: 0, lights: true });
+            // 3 秒后发一条测试通知，验证原生通知是否生效
+            await LN.schedule({ notifications: [{ id: 999999, title: '⏰ 测试提醒', body: '如果你听到铃声，说明原生后台提醒已生效', schedule: { at: new Date(Date.now() + 3000), allowWhileIdle: true }, sound: 'schedule_alarm', channelId: 'alarm_reminders', smallIcon: 'ic_stat_icon' }] });
+            toast('已开启，3 秒后发送测试提醒');
+          } else {
+            toast('通知权限未开启，请在系统设置里打开');
+          }
           await scheduleNativeReminders();
-        } catch (e) { toast('请求通知权限失败'); }
+        } catch (e) { toast('请求通知权限失败：' + String(e && e.message || e)); }
         return;
       }
       const p = await ensurePermission();
