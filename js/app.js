@@ -367,7 +367,7 @@
       // 先申请权限（安卓13+会弹系统授权）
       await LN.requestPermissions();
       // 最高优先级 + 自定义闹钟铃声（res/raw/schedule_alarm.wav）
-      await LN.createChannel({ id: 'alarm_reminders', name: '日程提醒', importance: 4, sound: 'schedule_alarm', vibration: true, visibility: 0, lights: true });
+      await LN.createChannel({ id: 'alarm_reminders', name: '日程提醒', importance: 5, sound: 'schedule_alarm', vibration: true, visibility: 0, lights: true });
     } catch (e) { /* 忽略 */ }
     const now = Date.now();
     const list = [];
@@ -609,7 +609,7 @@
       if (LN) {
         try {
           await LN.requestPermissions();
-          await LN.createChannel({ id: 'alarm_reminders', name: '日程提醒', importance: 4, sound: 'schedule_alarm', vibration: true, visibility: 0, lights: true });
+          await LN.createChannel({ id: 'alarm_reminders', name: '日程提醒', importance: 5, sound: 'schedule_alarm', vibration: true, visibility: 0, lights: true });
           // 点一下立即发一条测试提醒，验证后台通知是否正常
           await LN.schedule({ notifications: [{ id: 123456, title: '⏰ 测试提醒', body: '收到说明后台提醒正常', schedule: { at: new Date(Date.now() + 2000).toISOString(), allowWhileIdle: true }, sound: 'schedule_alarm', channelId: 'alarm_reminders', smallIcon: 'ic_stat_icon' }] });
           toast('测试提醒已发送，2 秒后请注意通知/锁屏');
