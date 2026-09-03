@@ -512,15 +512,17 @@
         toast('⚠️ 解析脚本未加载，请刷新页面（Ctrl+F5）');
         return;
       }
-      // 优先尝试整段通知批量解析
-      const batch = window.NLP.parseBatch(raw);
-      if (batch.events && batch.events.length) {
-        const chipRemind = parseInt($('#fRemind').value, 10) || 30;
-        const evs = mergeSameVenue(batch.events); // 按时间排序 + 同地点相连合并
-        evs.forEach(ev => addItem({ title: ev.title, date: ev.date, time: ev.time, end: ev.end, location: ev.location, allDay: ev.allDay, note: '', remind: ev.allDay ? 0 : chipRemind }));
-        $('#quickInput').value = '';
-        toast('已导入 ' + evs.length + ' 条日程');
-        return;
+      // 仅当看起来像「通知/多条」才批量解析；否则走单条自然语言
+      if (typeof window.NLP.looksBatch === 'function' && window.NLP.looksBatch(raw)) {
+        const batch = window.NLP.parseBatch(raw);
+        if (batch.events && batch.events.length) {
+          const chipRemind = parseInt($('#fRemind').value, 10) || 30;
+          const evs = mergeSameVenue(batch.events); // 按时间排序 + 同地点相连合并
+          evs.forEach(ev => addItem({ title: ev.title, date: ev.date, time: ev.time, end: ev.end, location: ev.location, allDay: ev.allDay, note: '', remind: ev.allDay ? 0 : chipRemind }));
+          $('#quickInput').value = '';
+          toast('已导入 ' + evs.length + ' 条日程');
+          return;
+        }
       }
       const res = window.NLP.parseQuick(raw);
       if (res.error) { toast(res.error); return; }

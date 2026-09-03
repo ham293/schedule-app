@@ -264,9 +264,11 @@
 
   // 没有「时间：」关键字、但行内含时钟时间的自由文本
   function parseFreeLine(line, currentDate, now) {
-    // 先去编号前缀：1. / 1、 / 1) / （1） 等
-    const num = line.match(/^\s*[（(]?\d+[)）]?\s*[.、．)）:：]?\s*/);
-    if (num) line = line.slice(num[0].length);
+    // 先去编号前缀：1. / 1、 / 1) / （1） 等（若以时间开头如 11:00，则不去掉）
+    if (!/^\s*\d{1,2}\s*[:：半点]/.test(line)) {
+      const num = line.match(/^\s*[（(]?\d+[)）]?\s*[.、．)）]?\s*/);
+      if (num) line = line.slice(num[0].length);
+    }
     const hourRe = '(?:\\d{1,2}|[' + CN_NUM + ']+)';
     const m = line.match(new RegExp('(上午|下午|中午|晚上|傍晚|凌晨|早上|早晨|夜里|夜晚)?\\s*' + hourRe + '\\s*[:：点半时]\\s*\\d{0,2}\\s*半?\\s*(?:[-~～至到]\\s*(?:上午|下午|中午|晚上|傍晚|凌晨|早上|早晨|夜里|夜晚)?\\s*' + hourRe + '\\s*[:：点半时]\\s*\\d{0,2}\\s*半?)?'));
     if (!m || !m[0]) return null;
@@ -284,8 +286,10 @@
 
   // 结构化行：含「时间：」
   function parseEventLine(body, currentDate, now) {
-    const num = body.match(/^\s*[（(]?\d+[)）]?\s*[.、．)）:：]?\s*/);
-    if (num) body = body.slice(num[0].length);
+    if (!/^\s*\d{1,2}\s*[:：半点]/.test(body)) {
+      const num = body.match(/^\s*[（(]?\d+[)）]?\s*[.、．)）]?\s*/);
+      if (num) body = body.slice(num[0].length);
+    }
     const tIdx = body.search(/时间\s*[:：]/);
     if (tIdx < 0) return null;
     let title = cleanTitle(body.slice(0, tIdx));
@@ -325,5 +329,16 @@
     return { events };
   }
 
-  window.NLP = { parseQuick, parseBatch };
+  // 判断是否像是「通知/多条」：含「时间：」关键字，或 ≥2 行带时间 → 走批量解析；否则单条自然语言
+  function looksBatch(text) {
+    text = (text || '').trim();
+    if (!text) return false;
+    if (/时间\s*[:：]/.test(text)) return true;
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) return false;
+    const eventy = lines.filter(l => /时间\s*[:：]/.test(l) || /\d{1,2}\s*[:：点半时]/.test(l)).length;
+    return eventy >= 2;
+  }
+
+  window.NLP = { parseQuick, parseBatch, looksBatch };
 })();
