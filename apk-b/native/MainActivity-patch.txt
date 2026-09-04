@@ -1,0 +1,2 @@
+// 在 MainActivity 的 onCreate 里，于 super.onCreate(savedInstanceState) 之前加上：
+        registerPlugin(AlarmPlugin.class);

@@ -1,0 +1,39 @@
+name: Build APK-B (Fullscreen Alarm)
+
+# 上传/提交即自动编译；也可在 Actions 页手动 "Run workflow"
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    # 用 Windows 运行器：与 build.ps1（PowerShell）完全兼容
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build project (copy web + add android + inject fullscreen plugin)
+        run: powershell -ExecutionPolicy Bypass -File apk-b/build.ps1
+
+      - name: Build debug APK
+        working-directory: apk-b/android
+        run: .\gradlew.bat assembleDebug
+
+      - name: Upload APK-B artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: schedule-app-b-apk
+          path: apk-b/android/app/build/outputs/apk/debug/app-debug.apk

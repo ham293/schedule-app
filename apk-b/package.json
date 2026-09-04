@@ -1,0 +1,13 @@
+{
+  "name": "schedule-app-b",
+  "version": "1.0.0",
+  "private": true,
+  "description": "日程管家 B方案 —— 原生全屏闹钟插件（尝试前台其它 App 时也能弹出）",
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}

@@ -29,6 +29,13 @@
     return null;
   }
   const isCap = !!getLocalNotif();
+  // B 方案：原生全屏闹钟插件（只在真正存在时用它；A 包没有则回退 LocalNotifications）
+  function getAlarmPlugin() {
+    try {
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Alarm) return window.Capacitor.Plugins.Alarm;
+    } catch (e) {}
+    return null;
+  }
 
   // 全局错误提示：任何未捕获错误都弹出来，避免“静默无反应”
   window.addEventListener('error', (ev) => {
@@ -359,6 +366,30 @@
     return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate(), hour: d.getHours(), minute: d.getMinutes(), second: d.getSeconds() };
   }
   async function scheduleNativeReminders() {
+    // B 方案：优先用原生全屏闹钟插件（锁屏/前台其它 App 也能弹）
+    const AL = getAlarmPlugin();
+    if (AL) {
+      try {
+        const now = Date.now();
+        try { if (typeof AL.cancelAll === 'function') await AL.cancelAll(); } catch (e) {}
+        const list = [];
+        for (const it of items) {
+          if (it.done || !(it.remind > 0)) continue;
+          const st = parseWhen(it).getTime();
+          const when = st - it.remind * 60000;
+          if (when > now) {
+            list.push({
+              id: toNumId(it.id),
+              title: it.title,
+              body: `${it.date} ${it.allDay ? '全天' : it.time + (it.end ? '-' + it.end : '')}${it.location ? ' · ' + it.location : ''}`,
+              at: new Date(when).toISOString(),
+            });
+          }
+        }
+        for (const n of list) { try { await AL.schedule(n); } catch (e) {} }
+        return;
+      } catch (e) { /* 回退到 LocalNotifications */ }
+    }
     const LN = getLocalNotif();
     if (!LN) return;
     try {

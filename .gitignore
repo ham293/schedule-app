@@ -3,6 +3,9 @@ node_modules/
 apk/node_modules/
 apk/www/
 apk/android/
+apk-b/node_modules/
+apk-b/www/
+apk-b/android/
 *.log
 .DS_Store
 .vscode/
