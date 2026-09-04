@@ -377,14 +377,16 @@
     const now = Date.now();
     const buildList = () => {
       const list = [];
+      const nowMs = Date.now();
       for (const it of items) {
         if (it.done || !(it.remind > 0)) continue;
         const st = parseWhen(it).getTime();
+        if (st <= nowMs) continue; // 已开始/已结束，不再安排
         const when = st - it.remind * 60000;
-        if (when > now) {
-          const body = `${it.title} · ${it.date} ${it.allDay ? '全天' : it.time + (it.end ? '-' + it.end : '')}${it.location ? ' · ' + it.location : ''}`;
-          list.push({ id: toNumId(it.id), title: it.title, body, at: new Date(when).toISOString() });
-        }
+        // 提醒时刻至少为“现在+1秒”，避免“等于现在”被跳过导致不提醒
+        const fireAt = Math.max(when, nowMs + 1000);
+        const body = `${it.title} · ${it.date} ${it.allDay ? '全天' : it.time + (it.end ? '-' + it.end : '')}${it.location ? ' · ' + it.location : ''}`;
+        list.push({ id: toNumId(it.id), title: it.title, body, at: new Date(fireAt).toISOString() });
       }
       return list;
     };
