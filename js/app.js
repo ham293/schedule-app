@@ -29,18 +29,6 @@
     return null;
   }
   const isCap = !!getLocalNotif();
-  // B 方案：原生全屏闹钟插件（自定义插件需 registerPlugin 才能从网页访问）
-  function getAlarmPlugin() {
-    try {
-      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Alarm) return window.Capacitor.Plugins.Alarm;
-      if (window.Capacitor && typeof window.Capacitor.registerPlugin === 'function') {
-        const A = window.Capacitor.registerPlugin('Alarm');
-        if (window.Capacitor.Plugins) window.Capacitor.Plugins.Alarm = A;
-        return A;
-      }
-    } catch (e) {}
-    return null;
-  }
 
   // 全局错误提示：任何未捕获错误都弹出来，避免“静默无反应”
   window.addEventListener('error', (ev) => {
@@ -645,21 +633,22 @@
     // FAB / 通知
     $('#fabAdd').addEventListener('click', () => { initFormDefaults(); $('#formCard').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' }); });
     $('#notifyBtn').addEventListener('click', async () => {
-      const AL = getAlarmPlugin();
       const LN = getLocalNotif();
+      const AL = getAlarmPlugin();
       let sent = false;
-      if (AL) {
-        try {
-          if (typeof AL.requestPermissions === 'function') await AL.requestPermissions();
-          await AL.schedule({ id: 123456, title: '⏰ 测试提醒', body: '收到说明全屏闹钟正常', at: new Date(Date.now() + 2000).toISOString() });
-          sent = true;
-        } catch (e) {}
-      }
+      // 优先本地通知（A 方案用），失败再试全屏闹钟（B 方案用）
       if (LN) {
         try {
           await LN.requestPermissions();
           await LN.createChannel({ id: 'alarm_reminders', name: '日程提醒', importance: 4, sound: 'schedule_alarm', vibration: true, vibrationPattern: [0, 600, 300, 600], visibility: 0, lights: true });
           await LN.schedule({ notifications: [{ id: 123456, title: '⏰ 测试提醒', body: '收到说明后台提醒正常', schedule: { at: new Date(Date.now() + 2000).toISOString(), allowWhileIdle: true }, sound: 'schedule_alarm', channelId: 'alarm_reminders', smallIcon: 'ic_stat_icon' }] });
+          sent = true;
+        } catch (e) {}
+      }
+      if (!sent && AL) {
+        try {
+          if (typeof AL.requestPermissions === 'function') await AL.requestPermissions();
+          await AL.schedule({ id: 123456, title: '⏰ 测试提醒', body: '收到说明全屏闹钟正常', at: new Date(Date.now() + 2000).toISOString() });
           sent = true;
         } catch (e) {}
       }
