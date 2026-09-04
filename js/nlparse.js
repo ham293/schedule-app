@@ -168,6 +168,10 @@
     const dm = text.match(/(\d+)\s*天\s*(后|之后|以后)?/);
     if (dm) { offset += (+dm[1]) * 86400000; has = true; spans.push([dm.index, dm.index + dm[0].length]); }
 
+    // 半小时 / 半 个小时（30 分钟）
+    const half = text.match(/半\s*(?:个)?\s*小时\s*(后|之后|以后)?/);
+    if (half) { offset += 30 * 60000; has = true; spans.push([half.index, half.index + half[0].length]); }
+
     const hm = text.match(/(\d+)\s*(?:个)?\s*小时\s*(?:(\d+)\s*分钟)?\s*(后|之后|以后)?/);
     const mm = text.match(/(\d+)\s*分钟\s*(后|之后|以后)?/);
     if (hm) { offset += (+hm[1]) * 3600000; if (hm[2]) offset += (+hm[2]) * 60000; has = true; spans.push([hm.index, hm.index + hm[0].length]); }
