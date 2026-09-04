@@ -17,7 +17,9 @@ New-Item -ItemType Directory -Force -Path 'android\app\src\main\res\drawable' | 
 Copy-Item "$root\apk\res-drawable\ic_stat_icon.xml" -Destination 'android\app\src\main\res\drawable\ic_stat_icon.xml' -Force
 
 # 3) AndroidManifest：加权限 + 组件
-$manifest = 'android\app\src\main\AndroidManifest.xml'
+# 注意：WriteAllText 用进程当前目录，需用绝对路径
+$androidDir = Join-Path $PSScriptRoot 'android'
+$manifest = Join-Path $androidDir 'app\src\main\AndroidManifest.xml'
 if (Test-Path $manifest) {
   $m = Get-Content -Raw $manifest
   $perms = @(
@@ -44,7 +46,7 @@ if (Test-Path $manifest) {
 }
 
 # 4) 覆盖 MainActivity（含 registerPlugin）
-$main = 'android\app\src\main\java\com\schedule\b\MainActivity.java'
+$main = Join-Path $PSScriptRoot 'android\app\src\main\java\com\schedule\b\MainActivity.java'
 $mainContent = @'
 package com.schedule.b;
 
