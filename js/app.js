@@ -99,6 +99,38 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
   }
 
+  // ---------- 冲突检测：同一天时间区间重叠 → 归为一组、用相同颜色标出 ----------
+  const CONFLICT_COLORS = ['#FF5A6E', '#FF9F1C', '#22C08A', '#7A67FF', '#E040FB', '#00B8D4'];
+  function findConflicts() {
+    const cmap = {};
+    const byDate = {};
+    for (const it of items) (byDate[it.date] = byDate[it.date] || []).push(it);
+    let ci = 0;
+    for (const date in byDate) {
+      const list = byDate[date].slice().sort((a, b) => parseWhen(a) - parseWhen(b));
+      const groups = [];
+      let cur = [], curEnd = -1;
+      for (const it of list) {
+        const st = parseWhen(it).getTime();
+        const en = it.end ? new Date(it.date + 'T' + it.end).getTime() : st + DURATION * 60000;
+        if (!cur.length || st >= curEnd) {
+          if (cur.length) groups.push(cur);
+          cur = [it]; curEnd = en;
+        } else {
+          cur.push(it); curEnd = Math.max(curEnd, en);
+        }
+      }
+      if (cur.length) groups.push(cur);
+      for (const g of groups) {
+        if (g.length > 1) {
+          const color = CONFLICT_COLORS[ci++ % CONFLICT_COLORS.length];
+          for (const it of g) cmap[it.id] = color;
+        }
+      }
+    }
+    return cmap;
+  }
+
   // ---------- 视图渲染 ----------
   function render() {
     renderList();
@@ -130,6 +162,7 @@
       else if (it.date >= today) future.push(it);
       else past.push(it);
     }
+    const cmap = findConflicts(); // id -> 冲突颜色
     const sections = [];
     if (todayItems.length) {
       sections.push({ label: '今天', sub: weekdayCN(today), arr: sortItems(todayItems), today: true });
@@ -142,14 +175,14 @@
     for (const sec of sections) {
       html += `<div class="group">
         <div class="group-date">${sec.label} <span class="badge">${sec.arr.length}</span> <span class="sub">${sec.sub}</span></div>
-        ${sec.arr.map(it => itemHTML(it)).join('')}
+        ${sec.arr.map(it => itemHTML(it, cmap)).join('')}
       </div>`;
     }
     if (past.length) {
       const byDate = groupByDate(past, true);
       html += `<div class="group"><div class="group-date" style="color:#8d93ad">已过日程 <span class="badge">${past.length}</span></div>`;
       for (const d of byDate) {
-        html += `<div class="group" style="opacity:.8"><div class="group-date"><span class="sub">${d.date} ${weekdayCN(d.date)}</span></div>${d.items.map(it => itemHTML(it)).join('')}</div>`;
+        html += `<div class="group" style="opacity:.8"><div class="group-date"><span class="sub">${d.date} ${weekdayCN(d.date)}</span></div>${d.items.map(it => itemHTML(it, cmap)).join('')}</div>`;
       }
       html += `</div>`;
     }
@@ -165,7 +198,7 @@
     return keys.map(k => ({ date: k, items: sortItems(map[k]) }));
   }
 
-  function itemHTML(it) {
+  function itemHTML(it, cmap) {
     const st = statusOf(it);
     const barCls = it.done ? 'done' : st === 'past' ? 'past' : '';
     const tagCls = it.done ? 'done' : st === 'upcoming' ? 'upcoming' : st === 'doing' ? 'doing' : 'past';
@@ -173,15 +206,20 @@
     const cd = it.done ? '' : countdownText(it);
     const cdCls = st === 'doing' ? 'doing' : st === 'past' ? 'past' : '';
     const remind = it.remind > 0 ? `⏰ 提前${it.remind}分钟` : '';
+    const conflictColor = cmap && cmap[it.id];
+    const conflictTag = conflictColor
+      ? `<span class="conflict-tag" style="background:${conflictColor}">⚠️ 时间冲突</span>`
+      : '';
     return `<div class="item" data-id="${it.id}">
       <button class="check ${it.done ? 'done' : ''}" data-act="toggle" aria-label="完成">${it.done ? '✓' : ''}</button>
-      <div class="item-bar ${barCls}"></div>
+      <div class="item-bar ${barCls}" style="${conflictColor ? 'background:' + conflictColor + ';' : ''}"></div>
       <div class="item-body">
         <div class="item-title">${esc(it.title)}</div>
         <div class="item-meta">
           <span class="item-time">${isToday(it.date) ? '今天' : it.date} ${it.allDay ? '全天' : it.time + (it.end ? ' - ' + it.end : '')}</span>
           ${remind ? `<span class="tag upcoming">${remind}</span>` : ''}
           ${it.location ? `<span class="tag">📍 ${esc(it.location)}</span>` : ''}
+          ${conflictTag}
         </div>
         ${it.note ? `<div class="item-note">${esc(it.note)}</div>` : ''}
       </div>
@@ -203,13 +241,18 @@
       return;
     }
     empty.classList.add('hidden');
+    const cmap = findConflicts(); // id -> 冲突颜色
     tbody.innerHTML = sorted.map(it => {
       const st = statusOf(it);
       const tagCls = it.done ? 'done' : st === 'upcoming' ? 'upcoming' : st === 'doing' ? 'doing' : 'past';
       const tagText = it.done ? '已完成' : st === 'upcoming' ? '未开始' : st === 'doing' ? '进行中' : '已结束';
       const remind = it.remind > 0 ? `${it.remind}分钟` : '—';
+      const conflictColor = cmap && cmap[it.id];
+      const conflictDot = conflictColor
+        ? `<div style="width:10px;height:10px;border-radius:50%;background:${conflictColor};display:inline-block;margin-right:4px"></div>`
+        : '';
       return `<tr class="${it.date === today ? 'today' : ''}" data-id="${it.id}">
-        <td class="tdate">${isToday(it.date) ? '今天' : it.date}<div style="font-size:11px;color:#8d93ad">${weekdayCN(it.date)}</div></td>
+        <td class="tdate">${conflictDot}${isToday(it.date) ? '今天' : it.date}<div style="font-size:11px;color:#8d93ad">${weekdayCN(it.date)}</div></td>
         <td class="ttime">${it.allDay ? '全天' : it.time + (it.end ? '-' + it.end : '')}</td>
         <td>${esc(it.title)}${it.location ? `<div style="font-size:11px;color:#8d93ad">📍 ${esc(it.location)}</div>` : ''}${it.note ? `<div style="font-size:11px;color:#8d93ad">${esc(it.note)}</div>` : ''}</td>
         <td>${remind}</td>
