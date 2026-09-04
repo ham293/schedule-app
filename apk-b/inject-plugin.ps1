@@ -36,7 +36,7 @@ if (Test-Path $manifest) {
     if ($m -match '</application>') {
       $m = $m -replace '(</application>)', "$comps`n`n`$1"
     }
-    Set-Content -Path $manifest -Value $m -Encoding UTF8
+    [System.IO.File]::WriteAllText($manifest, $m, (New-Object System.Text.UTF8Encoding($false)))
     Write-Host "  已写入 AndroidManifest 权限与组件"
   } else {
     Write-Host "  AndroidManifest 已含组件，跳过"
@@ -59,6 +59,6 @@ public class MainActivity extends BridgeActivity {
   }
 }
 '@
-Set-Content -Path $main -Value $mainContent -Encoding UTF8
+[System.IO.File]::WriteAllText($main, $mainContent, (New-Object System.Text.UTF8Encoding($false)))
 Write-Host "  已写入 MainActivity（注册 AlarmPlugin）"
 Write-Host "  B方案插件注入完成。"
