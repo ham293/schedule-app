@@ -1,8 +1,0 @@
-{
-  "appId": "com.schedule.b",
-  "appName": "日程管家",
-  "webDir": "www",
-  "server": {
-    "androidScheme": "https"
-  }
-}
