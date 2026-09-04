@@ -12,10 +12,14 @@ Copy-Item "$root\css", "$root\js", "$root\icons" -Recurse -Destination www
 Remove-Item (Join-Path www 'icons\make_icons.py') -ErrorAction SilentlyContinue
 
 Write-Host "==> 2/5 安装依赖 ..."
-if (-not (Test-Path node_modules)) { npm install }
+npm install
+if ($LASTEXITCODE -ne 0) { throw "npm install 失败，exit=$LASTEXITCODE" }
 
 Write-Host "==> 3/5 添加安卓平台 ..."
-if (-not (Test-Path android)) { npx cap add android }
+if (-not (Test-Path android)) {
+  node node_modules/@capacitor/cli/bin/capacitor add android
+  if ($LASTEXITCODE -ne 0) { throw "cap add android 失败，exit=$LASTEXITCODE" }
+}
 
 Write-Host "==> 4/5 注入原生全屏闹钟插件 ..."
 $pkgDir = 'android\app\src\main\java\com\schedule\b'
@@ -71,7 +75,8 @@ public class MainActivity extends BridgeActivity {
 Set-Content -Path $main -Value $mainContent -Encoding UTF8
 
 Write-Host "==> 5/5 同步 ..."
-npx cap sync android
+node node_modules/@capacitor/cli/bin/capacitor sync android
+if ($LASTEXITCODE -ne 0) { throw "cap sync android 失败，exit=$LASTEXITCODE" }
 
 Write-Host ""
 Write-Host "完成！用 Android Studio 打开 $PSScriptRoot\android 并 Build APK。"
