@@ -57,10 +57,22 @@ public class AlarmPlugin extends Plugin {
         try { when = Instant.parse(at).toEpochMilli(); }
         catch (Exception e) { when = System.currentTimeMillis() + 60000; }
 
+        // 优先用「系统闹钟」API：状态栏显示闹钟图标、按闹钟方式唤醒（最接近系统闹钟）
         try {
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, when, pi);
+            Intent show = new Intent(ctx, AlarmReceiver.class);
+            show.putExtra("id", id);
+            PendingIntent showPi = PendingIntent.getBroadcast(ctx, id + 100000, show,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            am.setAlarmClock(new AlarmManager.AlarmClockInfo(when, showPi), pi);
         } catch (Exception e) {
-            try { am.set(AlarmManager.RTC_WAKEUP, when, pi); } catch (Exception e2) {}
+            try {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, when, pi);
+                if (android.os.Build.VERSION.SDK_INT >= 31) {
+                    // Android 12+ 需要此权限才能设置精确闹钟
+                }
+            } catch (Exception e2) {
+                try { am.set(AlarmManager.RTC_WAKEUP, when, pi); } catch (Exception e3) {}
+            }
         }
 
         JSObject ret = new JSObject();
