@@ -22,8 +22,9 @@ $pkgDir = 'android\app\src\main\java\com\schedule\b'
 New-Item -ItemType Directory -Force -Path $pkgDir | Out-Null
 Copy-Item 'native\AlarmPlugin.java','native\AlarmReceiver.java','native\AlarmActivity.java' -Destination $pkgDir -Force
 
-# 保证 res（铃声/图标）
-Copy-Item "$root\apk\res-raw\schedule_alarm.wav" -Destination 'android\app\src\main\res\raw\schedule_alarm.wav' -Force -ErrorAction SilentlyContinue
+# 保证 res（铃声/图标）：注意 cap add android 生成的工程里可能没有 res\raw，先建目录
+New-Item -ItemType Directory -Force -Path 'android\app\src\main\res\raw' | Out-Null
+Copy-Item "$root\apk\res-raw\schedule_alarm.wav" -Destination 'android\app\src\main\res\raw\schedule_alarm.wav' -Force
 New-Item -ItemType Directory -Force -Path 'android\app\src\main\res\drawable' | Out-Null
 Copy-Item "$root\apk\res-drawable\ic_stat_icon.xml" -Destination 'android\app\src\main\res\drawable\ic_stat_icon.xml' -Force
 
