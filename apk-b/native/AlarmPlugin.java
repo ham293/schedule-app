@@ -5,6 +5,9 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 
+import android.Manifest;
+import android.os.Build;
+
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -19,6 +22,19 @@ import java.time.Instant;
  */
 @CapacitorPlugin(name = "Alarm")
 public class AlarmPlugin extends Plugin {
+
+    @PluginMethod
+    public void requestPermissions(PluginCall call) {
+        // 安卓 13+ 需要 POST_NOTIFICATIONS 才能显示通知（全屏闹钟依赖通知）
+        if (Build.VERSION.SDK_INT >= 33) {
+            try {
+                getActivity().requestPermissions(new String[]{ Manifest.permission.POST_NOTIFICATIONS }, 100);
+            } catch (Exception e) {}
+        }
+        JSObject ret = new JSObject();
+        ret.put("ok", true);
+        call.resolve(ret);
+    }
 
     @PluginMethod
     public void schedule(PluginCall call) {

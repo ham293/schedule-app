@@ -29,10 +29,15 @@
     return null;
   }
   const isCap = !!getLocalNotif();
-  // B 方案：原生全屏闹钟插件（只在真正存在时用它；A 包没有则回退 LocalNotifications）
+  // B 方案：原生全屏闹钟插件（自定义插件需 registerPlugin 才能从网页访问）
   function getAlarmPlugin() {
     try {
       if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Alarm) return window.Capacitor.Plugins.Alarm;
+      if (window.Capacitor && typeof window.Capacitor.registerPlugin === 'function') {
+        const A = window.Capacitor.registerPlugin('Alarm');
+        if (window.Capacitor.Plugins) window.Capacitor.Plugins.Alarm = A;
+        return A;
+      }
     } catch (e) {}
     return null;
   }
@@ -366,60 +371,59 @@
     return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate(), hour: d.getHours(), minute: d.getMinutes(), second: d.getSeconds() };
   }
   async function scheduleNativeReminders() {
-    // B 方案：优先用原生全屏闹钟插件（锁屏/前台其它 App 也能弹）
+    // 同时尝试两条路：A 用本地通知(LocalNotifications)、B 用全屏闹钟(Alarm)，哪个真实存在就生效
     const AL = getAlarmPlugin();
+    const LN = getLocalNotif();
+    const now = Date.now();
+    const buildList = () => {
+      const list = [];
+      for (const it of items) {
+        if (it.done || !(it.remind > 0)) continue;
+        const st = parseWhen(it).getTime();
+        const when = st - it.remind * 60000;
+        if (when > now) {
+          const body = `${it.title} · ${it.date} ${it.allDay ? '全天' : it.time + (it.end ? '-' + it.end : '')}${it.location ? ' · ' + it.location : ''}`;
+          list.push({ id: toNumId(it.id), title: it.title, body, at: new Date(when).toISOString() });
+        }
+      }
+      return list;
+    };
+
+    // B 方案：全屏闹钟插件
     if (AL) {
       try {
-        const now = Date.now();
+        try { if (typeof AL.requestPermissions === 'function') await AL.requestPermissions(); } catch (e) {}
         try { if (typeof AL.cancelAll === 'function') await AL.cancelAll(); } catch (e) {}
-        const list = [];
-        for (const it of items) {
-          if (it.done || !(it.remind > 0)) continue;
-          const st = parseWhen(it).getTime();
-          const when = st - it.remind * 60000;
-          if (when > now) {
-            list.push({
-              id: toNumId(it.id),
-              title: it.title,
-              body: `${it.date} ${it.allDay ? '全天' : it.time + (it.end ? '-' + it.end : '')}${it.location ? ' · ' + it.location : ''}`,
-              at: new Date(when).toISOString(),
-            });
-          }
-        }
-        for (const n of list) { try { await AL.schedule(n); } catch (e) {} }
-        return;
-      } catch (e) { /* 回退到 LocalNotifications */ }
+        const list = buildList();
+        for (const n of list) { try { if (typeof AL.schedule === 'function') await AL.schedule(n); } catch (e) {} }
+      } catch (e) { /* 忽略 */ }
     }
-    const LN = getLocalNotif();
-    if (!LN) return;
-    try {
-      const pending = await LN.getPending();
-      await LN.cancel({ notifications: pending.notifications });
-      // 先申请权限（安卓13+会弹系统授权）
-      await LN.requestPermissions();
-      // 最高优先级 + 自定义闹钟铃声（res/raw/schedule_alarm.wav）
-      await LN.createChannel({ id: 'alarm_reminders', name: '日程提醒', importance: 4, sound: 'schedule_alarm', vibration: true, vibrationPattern: [0, 600, 300, 600], visibility: 0, lights: true });
-    } catch (e) { /* 忽略 */ }
-    const now = Date.now();
-    const list = [];
-    for (const it of items) {
-      if (it.done || !(it.remind > 0)) continue;
-      const st = parseWhen(it).getTime();
-      const when = st - it.remind * 60000;
-      if (when > now) {
-        list.push({
-          id: toNumId(it.id),
-          title: '⏰ 日程提醒',
-          body: `${it.title} · ${it.date} ${it.allDay ? '全天' : it.time + (it.end ? '-' + it.end : '')}${it.location ? ' · ' + it.location : ''}`,
-          schedule: { at: new Date(when).toISOString(), allowWhileIdle: true },
-          sound: 'schedule_alarm',
-          channelId: 'alarm_reminders',
-          smallIcon: 'ic_stat_icon',
-        });
+
+    // A 方案：本地通知
+    if (LN) {
+      try {
+        const pending = await LN.getPending();
+        await LN.cancel({ notifications: pending.notifications });
+        await LN.requestPermissions();
+        await LN.createChannel({ id: 'alarm_reminders', name: '日程提醒', importance: 4, sound: 'schedule_alarm', vibration: true, vibrationPattern: [0, 600, 300, 600], visibility: 0, lights: true });
+      } catch (e) { /* 忽略 */ }
+      const list = buildList();
+      if (list.length) {
+        try {
+          await LN.schedule({
+            notifications: list.map(n => ({
+              id: n.id,
+              title: '⏰ 日程提醒',
+              body: n.body,
+              schedule: { at: n.at, allowWhileIdle: true },
+              sound: 'schedule_alarm',
+              channelId: 'alarm_reminders',
+              smallIcon: 'ic_stat_icon',
+            })),
+          });
+        } catch (e) {}
       }
     }
-    if (!list.length) return;
-    try { await LN.schedule({ notifications: list }); } catch (e) {}
   }
 
   // ---------- 提醒声音（Web Audio，无需音频文件） ----------
@@ -639,21 +643,31 @@
     // FAB / 通知
     $('#fabAdd').addEventListener('click', () => { initFormDefaults(); $('#formCard').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' }); });
     $('#notifyBtn').addEventListener('click', async () => {
+      const AL = getAlarmPlugin();
       const LN = getLocalNotif();
+      let sent = false;
+      if (AL) {
+        try {
+          if (typeof AL.requestPermissions === 'function') await AL.requestPermissions();
+          await AL.schedule({ id: 123456, title: '⏰ 测试提醒', body: '收到说明全屏闹钟正常', at: new Date(Date.now() + 2000).toISOString() });
+          sent = true;
+        } catch (e) {}
+      }
       if (LN) {
         try {
           await LN.requestPermissions();
           await LN.createChannel({ id: 'alarm_reminders', name: '日程提醒', importance: 4, sound: 'schedule_alarm', vibration: true, vibrationPattern: [0, 600, 300, 600], visibility: 0, lights: true });
-          // 点一下立即发一条测试提醒，验证后台通知是否正常
           await LN.schedule({ notifications: [{ id: 123456, title: '⏰ 测试提醒', body: '收到说明后台提醒正常', schedule: { at: new Date(Date.now() + 2000).toISOString(), allowWhileIdle: true }, sound: 'schedule_alarm', channelId: 'alarm_reminders', smallIcon: 'ic_stat_icon' }] });
-          toast('测试提醒已发送，2 秒后请注意通知/锁屏');
-          await scheduleNativeReminders();
-        } catch (e) { toast('发送失败：' + String(e && e.message || e)); }
-        return;
+          sent = true;
+        } catch (e) {}
       }
-      const p = await ensurePermission();
-      if (p === 'granted') toast('已开启提醒通知 ✅');
-      else if (p === 'unsupported') toast('当前浏览器不支持通知');
+      if (sent) toast('测试提醒已发送，2 秒后请注意');
+      else {
+        const p = await ensurePermission();
+        if (p === 'granted') toast('已开启提醒通知 ✅');
+        else toast('当前浏览器不支持通知');
+      }
+      await scheduleNativeReminders();
     });
 
     // 提醒弹窗：知道了 / 稍后提醒 / 点击遮罩关闭
