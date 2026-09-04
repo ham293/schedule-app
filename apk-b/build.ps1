@@ -17,7 +17,7 @@ if ($LASTEXITCODE -ne 0) { throw "npm install 失败，exit=$LASTEXITCODE" }
 
 Write-Host "==> 3/5 添加安卓平台 ..."
 if (-not (Test-Path android)) {
-  node node_modules/@capacitor/cli/bin/capacitor add android
+  npx @capacitor/cli add android
   if ($LASTEXITCODE -ne 0) { throw "cap add android 失败，exit=$LASTEXITCODE" }
 }
 
@@ -75,7 +75,7 @@ public class MainActivity extends BridgeActivity {
 Set-Content -Path $main -Value $mainContent -Encoding UTF8
 
 Write-Host "==> 5/5 同步 ..."
-node node_modules/@capacitor/cli/bin/capacitor sync android
+npx @capacitor/cli sync android
 if ($LASTEXITCODE -ne 0) { throw "cap sync android 失败，exit=$LASTEXITCODE" }
 
 Write-Host ""
