@@ -1,6 +1,5 @@
 name: Build APK-B (Fullscreen Alarm)
 
-# 上传/提交即自动编译；也可在 Actions 页手动 "Run workflow"
 on:
   workflow_dispatch:
   push:
@@ -8,7 +7,6 @@ on:
 
 jobs:
   build:
-    # 用 Windows 运行器：与 build.ps1（PowerShell）完全兼容
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -25,8 +23,32 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Build project (copy web + add android + inject fullscreen plugin)
-        run: powershell -ExecutionPolicy Bypass -File apk-b/build.ps1
+      - name: Prepare web assets -> www
+        shell: powershell
+        run: |
+          $root = $PWD
+          cd apk-b
+          if (Test-Path www) { Remove-Item -Recurse -Force www }
+          New-Item -ItemType Directory -Force www | Out-Null
+          Copy-Item "$root\index.html","$root\manifest.webmanifest","$root\sw.js" -Destination www
+          Copy-Item "$root\css","$root\js","$root\icons" -Recurse -Destination www
+          Remove-Item (Join-Path www 'icons\make_icons.py') -ErrorAction SilentlyContinue
+
+      - name: Install dependencies
+        working-directory: apk-b
+        run: npm install
+
+      - name: Add Android platform
+        working-directory: apk-b
+        run: npx cap add android
+
+      - name: Inject fullscreen alarm plugin
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File apk-b/inject-plugin.ps1
+
+      - name: Sync Capacitor
+        working-directory: apk-b
+        run: npx cap sync android
 
       - name: Build debug APK
         working-directory: apk-b/android
