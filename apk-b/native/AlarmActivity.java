@@ -102,11 +102,7 @@ public class AlarmActivity extends Activity {
         // 震动
         try {
             vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(java.time.Duration.ofMillis(800));
-            } else {
-                vibrator.vibrate(800);
-            }
+            vibrator.vibrate(800L);
         } catch (Exception e) {}
     }
 
